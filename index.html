@@ -557,25 +557,7 @@ function buildTeamCard(t) {
 
   const contact = t.contact ? `<div style="font-size:.74rem;color:var(--muted);margin-top:5px">📞 ${t.contact}</div>` : '';
 
-  // Statistiche solo per Heron
   const isHeron = t.name.trim().toLowerCase().includes('heron');
-  let statsHtml = '';
-  if (isHeron) {
-    const played = window._st.matches.filter(m => m.status==='played' && (m.homeId===t.id || m.awayId===t.id));
-    let wins=0, losses=0;
-    played.forEach(m => {
-      const isHome = m.homeId===t.id;
-      const hs = Number(m.score_home??0), as_ = Number(m.score_away??0);
-      if (isHome ? hs>as_ : as_>hs) wins++; else losses++;
-    });
-    const pts = wins*2;
-    statsHtml = `
-      <div class="heron-stats">
-        <span class="hstat win">✅ ${wins} Vinte</span>
-        <span class="hstat loss">❌ ${losses} Perse</span>
-        <span class="hstat pts">⭐ ${pts} pt</span>
-      </div>`;
-  }
 
   return `
     <div class="team-card${isHeron?' team-card-heron':''}">
@@ -583,7 +565,6 @@ function buildTeamCard(t) {
         <div class="team-card-name">${t.name}${isHeron?' 🦅':''}</div>
         ${t.city ? `<div class="team-card-city">🏙️ ${t.city}</div>` : ''}
         ${gymLine}
-        ${statsHtml}
         ${contact}
       </div>
       <div class="team-card-actions">
@@ -602,8 +583,29 @@ function renderList(c) {
   let matches = window._st.matches;
   if (window._st.filter!=='all') matches = matches.filter(m=>m.status===window._st.filter);
 
+  // Calcola statistiche Heron
+  const heronTeam = window._st.teams.find(t => t.name.trim().toLowerCase().includes('heron'));
+  let heronStatsHtml = '';
+  if (heronTeam) {
+    const played = window._st.matches.filter(m => m.status==='played' && (m.homeId===heronTeam.id || m.awayId===heronTeam.id));
+    let wins=0, losses=0;
+    played.forEach(m => {
+      const isHome = m.homeId===heronTeam.id;
+      const hs=Number(m.score_home??0), as_=Number(m.score_away??0);
+      if (isHome ? hs>as_ : as_>hs) wins++; else losses++;
+    });
+    const pts = wins*2;
+    heronStatsHtml = `
+      <div class="heron-stats" style="margin-bottom:16px">
+        <span class="hstat win">✅ ${wins} Vinte</span>
+        <span class="hstat loss">❌ ${losses} Perse</span>
+        <span class="hstat pts">⭐ ${pts} pt</span>
+      </div>`;
+  }
+
   let html = `
     <div class="section-header"><div class="section-title">Partite</div><span class="badge">${matches.length}</span></div>
+    ${heronStatsHtml}
     <div class="filters">
       ${Object.entries(filterMap).map(([k,v])=>
         `<button class="filter-chip ${window._st.filter===k?'active':''}" onclick="setFilter('${k}')">${v}</button>`
