@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#1D428A" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="BasketCamp" />
+  <meta name="apple-mobile-web-app-title" content="HeronBasket" />
   <link rel="manifest" href="manifest.json" />
-  <title>BasketCamp — Campionato</title>
+  <title>HeronBasket — Campionato</title>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
   <style>
     :root {
@@ -174,12 +174,12 @@
 
 <header>
   <div class="header-inner">
-    <div class="logo">Basket<span>Camp</span></div>
+    <div class="logo">Heron<span>Basket</span></div>
     <div class="season-pill" id="seasonPill">—</div>
     <nav>
       <button class="nav-btn active" id="navList"    onclick="setView('list')">🏀 Partite</button>
-      <button class="nav-btn"        id="navArchive" onclick="setView('archive')">📦 Archivio</button>
       <button class="nav-btn"        id="navTeams"   onclick="setView('teams')">👕 Squadre</button>
+      <button class="nav-btn"        id="navArchive" onclick="setView('archive')">📦 Archivio</button>
     </nav>
   </div>
 </header>
@@ -429,7 +429,7 @@ function renderList(c) {
         <div class="season-banner-label">Campionato in corso</div>
         <div class="season-banner-year">${seasonLabel}</div>
       </div>
-      <button class="btn-new-season" onclick="openNewSeasonModal()">🏆 Nuovo Anno</button>
+
     </div>
     ${statsHtml}
     <div class="section-header">
@@ -467,10 +467,10 @@ async function renderArchive(c) {
       .filter(s=>!s.active)
       .sort((a,b)=>b.label.localeCompare(a.label));
 
-    let html = `<div class="section-header"><div class="section-title">Archivio</div><span class="badge">${seasons.length}</span></div>`;
+    let html = `<div class="section-header"><div class="section-title">Archivio</div><div style="display:flex;align-items:center;gap:8px"><span class="badge">${seasons.length}</span><button class="btn-new-season" onclick="openNewSeasonModal()">🏆 Nuovo Anno</button></div></div>`;
 
     if (seasons.length===0) {
-      html += `<div class="empty"><div class="empty-icon">📦</div><h3>Archivio vuoto</h3><p>Le stagioni concluse appariranno qui quando avvii un nuovo campionato.</p></div>`;
+      html += `<div class="empty"><div class="empty-icon">📦</div><h3>Archivio vuoto</h3><p>Le stagioni concluse appariranno qui quando avvii un nuovo campionato.</p><button class="btn-new-season" style="margin-top:16px" onclick="openNewSeasonModal()">🏆 Nuovo Anno</button></div>`;
       c.innerHTML = html; return;
     }
 
