@@ -268,6 +268,18 @@
     .conv-chips{display:flex;flex-wrap:wrap;gap:5px}
     .conv-chip{font-size:.72rem;background:var(--gold-glow);color:var(--blue);border:1px solid var(--gold-dim);border-radius:20px;padding:2px 9px;font-weight:500}
 
+    /* pulsante convocati nella card */
+    .conv-peek-btn{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:700;color:var(--blue);background:var(--gold-glow);border:1px solid var(--gold-dim);border-radius:20px;padding:3px 10px;cursor:pointer;transition:background .15s;-webkit-tap-highlight-color:transparent;white-space:nowrap;flex-shrink:0}
+    .conv-peek-btn:active{background:var(--gold-dim);color:#fff}
+
+    /* modal convocati a schermo */
+    .conv-modal-list{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+    .conv-modal-item{display:flex;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+    .conv-modal-num{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--gold-dim);width:22px;text-align:center;flex-shrink:0}
+    .conv-modal-name{font-size:.92rem;font-weight:500;color:var(--text)}
+    .conv-modal-empty{text-align:center;padding:30px 0;color:var(--muted);font-size:.88rem;font-style:italic}
+    .conv-modal-meta{font-size:.78rem;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:6px}
+
     /* LOGIN TOGGLE */
     .login-toggle{display:flex;gap:6px;margin-top:2px}
     .toggle-btn{flex:1;padding:13px 8px;border-radius:12px;border:2px solid var(--border);background:var(--bg);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .18s;min-height:48px}
@@ -402,6 +414,18 @@
   </div>
 </div>
 
+<!-- ══ CONVOCATI VIEW MODAL ══ -->
+<div class="overlay" id="convViewOverlay" onclick="handleOverlayClick(event,'convViewOverlay')">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="convViewTitle">🦅 Convocati</span>
+      <button class="close-btn" onclick="closeOverlay('convViewOverlay')">✕</button>
+    </div>
+    <div class="conv-modal-meta" id="convViewMeta"></div>
+    <div class="conv-modal-list" id="convViewList"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -469,8 +493,8 @@ const FIREBASE_CONFIG = {
 //  🔐 UTENTI — modifica qui le password
 // ══════════════════════════════════════
 const USERS = {
-  admin: { password: "@dmin",  isAdmin: true,  label: "Admin",   role: "Amministratore" },
-  user:  { password: "heron",   isAdmin: false, label: "Ospite",  role: "Solo visualizzazione" }
+  admin: { password: "admin1234",  isAdmin: true,  label: "Admin",   role: "Amministratore" },
+  user:  { password: "user1234",   isAdmin: false, label: "Ospite",  role: "Solo visualizzazione" }
 };
 
 let db=null;
@@ -760,7 +784,12 @@ function buildMatchCard(m, archived=false){
     <div class="card-top"><div class="match-date"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${dateStr}${timeStr?' · '+timeStr:''}</div>
     <div class="chip-row"><span class="status-chip ${m.status||'scheduled'}">${statusLabels[m.status]||'Programmata'}</span>${heronBadge}</div></div>
     <div class="teams-row"><div class="team"><div class="team-name">${homeName}</div>${homeCity?`<div class="team-city">${homeCity}</div>`:''}${scoreHome}</div><div class="vs">VS</div><div class="team away"><div class="team-name">${awayName}</div>${awayCity?`<div class="team-city">${awayCity}</div>`:''}${scoreAway}</div></div>
-    <div class="card-footer">${locHtml}${actions}</div>
+    <div class="card-footer">${locHtml}
+      <div style="display:flex;align-items:center;gap:7px;flex-shrink:0">
+        ${(m.convocati&&m.convocati.length>0)?`<button class="conv-peek-btn" onclick="event.stopPropagation();openConvView('${m.id}')">🦅 ${m.convocati.length}</button>`:''}
+        ${actions}
+      </div>
+    </div>
     ${m.notes?`<div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);font-size:.74rem;color:var(--muted);line-height:1.4">📝 ${m.notes}</div>`:''}
   </div>`;
 }
@@ -818,6 +847,35 @@ function updateTeamHints(){
 window.onTeamSelect=function(){updateTeamHints();};
 window.onLocationInput=function(){const i=document.getElementById('f_location');if(i)i.dataset.manualEdit=i.value?'1':'';};
 // ── CONVOCATI ──
+// ── VISUALIZZA CONVOCATI (da card) ──
+window.openConvView = function(matchId) {
+  const m = window._st.matches.find(x=>x.id===matchId);
+  if(!m) return;
+  const dt = m.datetime ? new Date(m.datetime) : null;
+  const dateStr = dt ? dt.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'}) : '';
+  const homeTeam = window._st.teams.find(t=>t.id===m.homeId);
+  const awayTeam = window._st.teams.find(t=>t.id===m.awayId);
+  const vs = `${m.home||homeTeam?.name||'?'} vs ${m.away||awayTeam?.name||'?'}`;
+
+  document.getElementById('convViewTitle').textContent = '🦅 Convocati Heron';
+  document.getElementById('convViewMeta').innerHTML =
+    `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    ${dateStr ? dateStr + ' · ' : ''}${vs}`;
+
+  const conv = m.convocati || [];
+  const listEl = document.getElementById('convViewList');
+  if(conv.length === 0){
+    listEl.innerHTML = '<div class="conv-modal-empty">Nessun convocato inserito per questa partita.</div>';
+  } else {
+    listEl.innerHTML = conv.map((n,i)=>`
+      <div class="conv-modal-item">
+        <span class="conv-modal-num">${i+1}</span>
+        <span class="conv-modal-name">${n}</span>
+      </div>`).join('');
+  }
+  openOverlay('convViewOverlay');
+};
+
 window._convocati = []; // array of strings for current modal
 
 window.addConvocato = function(){
