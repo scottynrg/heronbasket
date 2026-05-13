@@ -453,7 +453,7 @@ const fbApp=apps.length?apps[0]:initializeApp(FIREBASE_CONFIG);
 db=getFirestore(fbApp);
 
 // ── CHECK SESSION ──
-const saved = sessionStorage.getItem('hb_user');
+const saved = localStorage.getItem('hb_user');
 if(saved && USERS[saved]){
   _doShowApp(saved);
 } else {
@@ -475,13 +475,13 @@ window.doLogin=function(){
     document.getElementById('loginPassword').focus();
     return;
   }
-  sessionStorage.setItem('hb_user', user);
+  localStorage.setItem('hb_user', user);
   _doShowApp(user);
 };
 
 window.doLogout=function(){
   closeOverlay('logoutOverlay');
-  sessionStorage.removeItem('hb_user');
+  localStorage.removeItem('hb_user');
   if(unsubMatches){unsubMatches();unsubMatches=null;}
   if(unsubTeams){unsubTeams();unsubTeams=null;}
   if(unsubSeason){unsubSeason();unsubSeason=null;}
