@@ -246,6 +246,28 @@
     select option{background:var(--surface);color:var(--text)}
     textarea{resize:none;min-height:72px}
 
+    /* ── CONVOCATI ── */
+    .conv-section{margin-top:4px}
+    .conv-title{font-size:.78rem;color:var(--blue);font-weight:600;letter-spacing:.3px;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+    .conv-add-row{display:flex;gap:8px;margin-bottom:10px}
+    .conv-add-row input{flex:1;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;transition:border-color .18s;-webkit-appearance:none;min-width:0}
+    .conv-add-row input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-glow)}
+    .conv-add-btn{flex-shrink:0;width:44px;height:44px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-size:1.3rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .15s}
+    .conv-add-btn:active{opacity:.75}
+    .conv-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;padding-right:2px}
+    .conv-list::-webkit-scrollbar{width:3px}
+    .conv-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+    .conv-item{display:flex;align-items:center;justify-content:space-between;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:9px 12px;gap:8px;animation:fadeUp .18s ease both}
+    .conv-item-name{font-size:.88rem;color:var(--text);font-weight:500;flex:1}
+    .conv-item-del{width:28px;height:28px;border-radius:7px;border:none;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:all .15s;flex-shrink:0}
+    .conv-item-del:hover{background:rgba(217,48,37,.1);color:var(--red)}
+    .conv-empty{font-size:.8rem;color:var(--muted);text-align:center;padding:10px 0;font-style:italic}
+    /* convocati on match card */
+    .conv-card-section{margin-top:9px;padding-top:9px;border-top:1px solid var(--border)}
+    .conv-card-title{font-size:.72rem;color:var(--blue);font-weight:700;letter-spacing:.3px;margin-bottom:6px;display:flex;align-items:center;gap:4px}
+    .conv-chips{display:flex;flex-wrap:wrap;gap:5px}
+    .conv-chip{font-size:.72rem;background:var(--gold-glow);color:var(--blue);border:1px solid var(--gold-dim);border-radius:20px;padding:2px 9px;font-weight:500}
+
     /* LOGIN TOGGLE */
     .login-toggle{display:flex;gap:6px;margin-top:2px}
     .toggle-btn{flex:1;padding:13px 8px;border-radius:12px;border:2px solid var(--border);background:var(--bg);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:600;cursor:pointer;transition:all .18s;min-height:48px}
@@ -332,6 +354,14 @@
     <div class="form-group"><label>Stato</label><select id="f_status" onchange="toggleScore()"><option value="scheduled">🟠 Programmata</option><option value="played">🟢 Giocata</option><option value="cancelled">🔴 Annullata</option></select></div>
     <div id="scoreSection" style="display:none"><div class="form-group"><label>🏆 Risultato</label><div class="score-row"><input type="number" id="f_score_home" placeholder="0" min="0" max="999" inputmode="numeric"/><div class="score-sep">—</div><input type="number" id="f_score_away" placeholder="0" min="0" max="999" inputmode="numeric"/></div></div></div>
     <div class="form-group"><label>📝 Note</label><textarea id="f_notes" placeholder="Info aggiuntive..." autocorrect="on" autocapitalize="sentences"></textarea></div>
+    <div class="conv-section" id="convSection">
+      <div class="conv-title">🦅 Convocati Heron</div>
+      <div class="conv-add-row">
+        <input type="text" id="convInput" placeholder="Nome giocatore" maxlength="40" autocapitalize="words" autocorrect="off" onkeydown="if(event.key==='Enter'){event.preventDefault();addConvocato()}" />
+        <button class="conv-add-btn" onclick="addConvocato()" title="Aggiungi">＋</button>
+      </div>
+      <div class="conv-list" id="convList"></div>
+    </div>
     <button class="btn-primary" id="matchSaveBtn" onclick="saveMatch()">💾 Salva Partita</button>
   </div>
 </div>
@@ -787,6 +817,59 @@ function updateTeamHints(){
 }
 window.onTeamSelect=function(){updateTeamHints();};
 window.onLocationInput=function(){const i=document.getElementById('f_location');if(i)i.dataset.manualEdit=i.value?'1':'';};
+// ── CONVOCATI ──
+window._convocati = []; // array of strings for current modal
+
+window.addConvocato = function(){
+  const inp = document.getElementById('convInput');
+  const name = inp.value.trim();
+  if(!name) return;
+  if(window._convocati.map(n=>n.toLowerCase()).includes(name.toLowerCase())){
+    showToast('⚠️ Già presente');
+    return;
+  }
+  window._convocati.push(name);
+  inp.value='';
+  inp.focus();
+  renderConvList();
+};
+
+window.removeConvocato = function(i){
+  window._convocati.splice(i,1);
+  renderConvList();
+};
+
+function renderConvList(){
+  const el = document.getElementById('convList');
+  if(!el) return;
+  if(window._convocati.length===0){
+    el.innerHTML='<div class="conv-empty">Nessun convocato aggiunto</div>';
+    return;
+  }
+  el.innerHTML = window._convocati.map((n,i)=>`
+    <div class="conv-item">
+      <span class="conv-item-name">👤 ${n}</span>
+      <button class="conv-item-del" onclick="removeConvocato(${i})" title="Rimuovi">✕</button>
+    </div>`).join('');
+}
+
+function showConvSection(){
+  // Show convocati section only if Heron is one of the teams
+  const homeId = document.getElementById('f_home')?.value;
+  const awayId = document.getElementById('f_away')?.value;
+  const heronT = window._st.teams.find(t=>t.name.trim().toLowerCase().includes('heron'));
+  const show = heronT && (homeId===heronT.id || awayId===heronT.id);
+  const sec = document.getElementById('convSection');
+  if(sec) sec.style.display = show ? 'block' : 'none';
+}
+
+// Override onTeamSelect to also update convocati visibility
+const _origOnTeamSelect = window.onTeamSelect;
+window.onTeamSelect = function(){
+  _origOnTeamSelect && _origOnTeamSelect();
+  showConvSection();
+};
+
 window.openMatchModal=function(id){
   if(!requireAdmin()) return;
   if(!window._st.currentSeason){showToast('⚠️ Crea prima un campionato');return;}
@@ -812,6 +895,12 @@ window.openMatchModal=function(id){
     document.getElementById('f_status').value='scheduled';
     ['f_score_home','f_score_away','f_notes'].forEach(i=>document.getElementById(i).value='');
   }
+  // Load convocati
+  window._convocati = id
+    ? [...(window._st.matches.find(x=>x.id===id)?.convocati || [])]
+    : [];
+  renderConvList();
+  showConvSection();
   toggleScore();openOverlay('matchOverlay');
 };
 
@@ -833,7 +922,7 @@ window.saveMatch=async function(){
   const date=document.getElementById('f_date').value,time=document.getElementById('f_time').value;
   const datetime=date?new Date(`${date}T${time||'00:00'}`).toISOString():null;
   const status=document.getElementById('f_status').value;
-  const data={datetime,homeId,awayId,home:homeTeam?.name||'',away:awayTeam?.name||'',location:document.getElementById('f_location').value.trim(),status,score_home:status==='played'?(parseInt(document.getElementById('f_score_home').value)||0):null,score_away:status==='played'?(parseInt(document.getElementById('f_score_away').value)||0):null,notes:document.getElementById('f_notes').value.trim(),updatedAt:new Date().toISOString()};
+  const data={datetime,homeId,awayId,home:homeTeam?.name||'',away:awayTeam?.name||'',location:document.getElementById('f_location').value.trim(),status,score_home:status==='played'?(parseInt(document.getElementById('f_score_home').value)||0):null,score_away:status==='played'?(parseInt(document.getElementById('f_score_away').value)||0):null,notes:document.getElementById('f_notes').value.trim(),convocati:window._convocati.filter(Boolean),updatedAt:new Date().toISOString()};
   btn.disabled=true;btn.textContent='⏳ Salvataggio...';
   try{
     const sid=window._st.currentSeason.id;
