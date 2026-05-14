@@ -193,6 +193,8 @@
     .archive-stats{display:flex;gap:6px;flex-wrap:wrap;padding:8px 0 6px}
     .btn-new-season{background:var(--gold);color:var(--blue);border:none;border-radius:10px;padding:9px 14px;font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap;min-height:38px}
     .btn-new-season:active{opacity:.8}
+    .btn-del-cancelled{background:rgba(217,48,37,.1);color:var(--red);border:1.5px solid rgba(217,48,37,.3);border-radius:10px;padding:7px 12px;font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap;min-height:36px;transition:background .15s}
+    .btn-del-cancelled:active{background:rgba(217,48,37,.22)}
 
     /* EMPTY */
     .empty{text-align:center;padding:48px 20px;color:var(--muted)}
@@ -679,7 +681,13 @@ function renderList(c){
       <div><div class="season-banner-label">Campionato</div><div class="season-banner-year">${seasonLabel}</div></div>
     </div>
     ${statsHtml}
-    <div class="section-header"><div class="section-title">Partite</div><span class="badge">${matches.length}</span></div>
+    <div class="section-header">
+      <div class="section-title">Partite</div>
+      <div style="display:flex;align-items:center;gap:7px">
+        <span class="badge">${matches.length}</span>
+        ${(window._st.isAdmin && window._st.matches.some(m=>m.status==='cancelled'))?`<button class="btn-del-cancelled" onclick="deleteAllCancelled()">🗑️ Annullate</button>`:''}
+      </div>
+    </div>
     <div class="filters">${Object.entries(filterMap).map(([k,v])=>`<button class="filter-chip ${window._st.filter===k?'active':''}" onclick="setFilter('${k}')">${v}</button>`).join('')}</div>`;
 
   if(!window._st.currentSeason){
@@ -989,6 +997,20 @@ window.saveMatch=async function(){
     closeOverlay('matchOverlay');
   }catch(e){showToast('❌ '+e.message);}
   btn.disabled=false;btn.textContent='💾 Salva Partita';
+};
+
+window.deleteAllCancelled=async function(){
+  if(!requireAdmin()) return;
+  const cancelled=window._st.matches.filter(m=>m.status==='cancelled');
+  if(cancelled.length===0){showToast('Nessuna partita annullata');return;}
+  if(!confirm(`Eliminare ${cancelled.length} partita${cancelled.length>1?'e':''} annullata${cancelled.length>1?'?':' ?'}`)) return;
+  try{
+    const sid=window._st.currentSeason.id;
+    const batch=writeBatch(db);
+    cancelled.forEach(m=>batch.delete(doc(db,'seasons',sid,'matches',m.id)));
+    await batch.commit();
+    showToast(`🗑️ ${cancelled.length} partita${cancelled.length>1?'e':''} eliminata${cancelled.length>1?'':'.'}`);
+  }catch(e){showToast('❌ '+e.message);}
 };
 
 window.deleteMatch=async function(id){
