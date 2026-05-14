@@ -1062,5 +1062,25 @@ document.querySelectorAll('.modal').forEach(modal=>{
   modal.addEventListener('touchend',e=>{const dy=e.changedTouches[0].clientY-sy;modal.style.transition='';modal.style.transform='';if(dy>80&&ss<=0){const ov=modal.closest('.overlay');if(ov)closeOverlay(ov.id);}},{passive:true});
 });
 </script>
+
+<div id="version-badge">V1.1</div>
+
+<style>
+#version-badge{
+  position: fixed;
+  bottom: 12px;
+  right: 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1D428A;
+  background: rgba(255,255,255,0.85);
+  padding: 6px 10px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 9999;
+}
+</style>
+
 </body>
 </html>
