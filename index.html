@@ -565,6 +565,7 @@ const FIREBASE_CONFIG = {
 //  🔐 ADMIN EMAIL — cambia con la tua email
 // ══════════════════════════════════════
 const ADMIN_EMAILS = [
+  "admin@heronbasket.it",
   "raffaborel@gmail.com",
   "manuela.leporati@gmail.com",
 ];
@@ -757,7 +758,9 @@ function _doShowApp(user,isAdmin){
   roleLabel.className='user-role '+(isAdmin?'admin':'viewer');
   document.getElementById('luEmail').textContent=isAnon?'Accesso ospite':(user.displayName||user.email||'Utente');
   document.getElementById('luRole').textContent=isAdmin?'Amministratore — modifiche abilitate':'Solo visualizzazione';
-  document.getElementById('fabBtn').style.display=isAdmin?'flex':'none';
+  const fab=document.getElementById('fabBtn');
+  fab.style.display=isAdmin?'flex':'none';
+  fab.onclick=()=>openMatchModal(null); // default: aggiungi partita
   startListeners();
   renderApp();
 }
