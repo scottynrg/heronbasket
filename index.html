@@ -56,6 +56,32 @@
     .login-viewer-link{display:block;text-align:center;margin-top:14px;font-size:.8rem;color:rgba(255,255,255,.55);cursor:pointer;text-decoration:underline}
     .login-viewer-link:hover{color:var(--gold)}
 
+    /* login tabs */
+    .login-tabs{display:flex;gap:0;margin-bottom:18px;border-radius:12px;overflow:hidden;border:1.5px solid var(--border)}
+    .login-tab{flex:1;padding:11px 8px;border:none;background:var(--bg);color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .18s;text-align:center}
+    .login-tab.active{background:var(--blue);color:#fff}
+    .login-tab:first-child{border-radius:10px 0 0 10px}
+    .login-tab:last-child{border-radius:0 10px 10px 0}
+    /* divider */
+    .login-divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--muted);font-size:.75rem}
+    .login-divider::before,.login-divider::after{content:'';flex:1;height:1px;background:var(--border)}
+    /* google btn */
+    .login-google-btn{
+      width:100%;padding:14px;border-radius:14px;border:1.5px solid var(--border);
+      background:#fff;color:var(--text);font-family:'DM Sans',sans-serif;
+      font-size:.92rem;font-weight:600;cursor:pointer;display:flex;align-items:center;
+      justify-content:center;gap:10px;transition:border-color .18s,box-shadow .18s;min-height:50px;
+    }
+    .login-google-btn:hover{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-glow)}
+    .login-google-btn:active{opacity:.8}
+    .login-google-btn svg{flex-shrink:0}
+    /* register link */
+    .login-switch{text-align:center;margin-top:12px;font-size:.8rem;color:var(--muted)}
+    .login-switch a{color:var(--blue);font-weight:600;cursor:pointer;text-decoration:none}
+    /* spinner inside btn */
+    .spinner-sm{width:18px;height:18px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+    .spinner-sm.dark{border-color:rgba(29,66,138,.2);border-top-color:var(--blue)}
+
     /* ── HEADER ── */
     header{position:sticky;top:0;z-index:100;background:var(--blue);border-bottom:3px solid var(--gold);padding-top:env(safe-area-inset-top,0);box-shadow:0 2px 12px rgba(29,66,138,.25)}
     .header-inner{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;gap:10px;min-height:50px;user-select:none}
@@ -296,22 +322,61 @@
   <div class="login-logo">Heron<span>Basket</span></div>
   <div class="login-subtitle">Campionato di Basket</div>
   <div class="login-card">
-    <div class="login-title">Accedi</div>
-    <div class="login-group">
-      <label>Accedi come</label>
-      <div class="login-toggle">
-        <button class="toggle-btn active" id="btnAdmin" onclick="selectUser('admin')">⭐ Admin</button>
-        <button class="toggle-btn" id="btnUser" onclick="selectUser('user')">👁 Ospite</button>
+
+    <!-- TABS: Accedi / Registrati -->
+    <div class="login-tabs">
+      <button class="login-tab active" id="tabLogin" onclick="switchTab('login')">Accedi</button>
+      <button class="login-tab" id="tabRegister" onclick="switchTab('register')">Registrati</button>
+    </div>
+
+    <!-- PANNELLO ACCEDI -->
+    <div id="panelLogin">
+      <div class="login-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="tuamail@email.com" autocomplete="email" inputmode="email"/>
       </div>
-      <input type="hidden" id="loginUser" value="admin"/>
+      <div class="login-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"/>
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <button class="login-btn" id="loginBtn" onclick="doLogin()">Accedi</button>
+
+      <div class="login-divider">oppure</div>
+
+      <button class="login-google-btn" id="googleBtn" onclick="doGoogleLogin()">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continua con Google
+      </button>
     </div>
-    <div class="login-group">
-      <label>Password</label>
-      <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password"/>
+
+    <!-- PANNELLO REGISTRATI -->
+    <div id="panelRegister" style="display:none">
+      <div class="login-group">
+        <label>Nome</label>
+        <input type="text" id="regName" placeholder="Il tuo nome" autocapitalize="words" autocomplete="name"/>
+      </div>
+      <div class="login-group">
+        <label>Email</label>
+        <input type="email" id="regEmail" placeholder="tuamail@email.com" autocomplete="email" inputmode="email"/>
+      </div>
+      <div class="login-group">
+        <label>Password (min. 6 caratteri)</label>
+        <input type="password" id="regPassword" placeholder="••••••••" autocomplete="new-password"/>
+      </div>
+      <div class="login-error" id="regError"></div>
+      <button class="login-btn" id="regBtn" onclick="doRegister()">Crea account</button>
+
+      <div class="login-divider">oppure</div>
+
+      <button class="login-google-btn" id="googleBtn2" onclick="doGoogleLogin()">
+        <svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.08 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-3.59-13.46-8.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continua con Google
+      </button>
     </div>
-    <div class="login-error" id="loginError"></div>
-    <button class="login-btn" id="loginBtn" onclick="doLogin()">Accedi</button>
+
   </div>
+  <span class="login-viewer-link" onclick="doGuestAccess()">Entra come ospite (solo visualizzazione)</span>
 </div>
 
 <!-- ══ APP (hidden until logged in) ══ -->
@@ -479,7 +544,11 @@ import {
   getFirestore, collection, addDoc, doc, updateDoc, deleteDoc,
   onSnapshot, query, orderBy, getDocs, writeBatch, setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-// Auth: locale (no Firebase Auth)
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged,
+  updateProfile, signInAnonymously
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // ── FIREBASE CONFIG ──
 const FIREBASE_CONFIG = {
@@ -492,111 +561,126 @@ const FIREBASE_CONFIG = {
 };
 
 // ══════════════════════════════════════
-//  🔐 UTENTI — modifica qui le password
+//  🔐 ADMIN EMAIL — cambia con la tua email
 // ══════════════════════════════════════
-const USERS = {
-  admin: { password: "@dmin",  isAdmin: true,  label: "Admin",   role: "Amministratore" },
-  user:  { password: "heron",   isAdmin: false, label: "Ospite",  role: "Solo visualizzazione" }
-};
+const ADMIN_EMAILS = [
+  "raffaborel@gmail.com",
+];
 
-let db=null;
+let db=null, auth=null;
 let unsubMatches=null, unsubTeams=null, unsubSeason=null;
 window._st={matches:[],teams:[],matchId:null,teamId:null,filter:'all',view:'list',currentSeason:null,isAdmin:false,currentUser:null};
 
-// ── INIT FIREBASE ──
 const apps=getApps();
 const fbApp=apps.length?apps[0]:initializeApp(FIREBASE_CONFIG);
 db=getFirestore(fbApp);
+auth=getAuth(fbApp);
 
-// ── CHECK SESSION ──
-const saved = localStorage.getItem('hb_user');
-if(saved && USERS[saved]){
-  _doShowApp(saved);
-} else {
-  showLogin();
-}
-
-// ── LOGIN ──
-window.doLogin=function(){
-  const btn=document.getElementById('loginBtn');
-  const user=document.getElementById('loginUser').value;
-  const pass=document.getElementById('loginPassword').value.trim();
-  const err=document.getElementById('loginError');
-  err.textContent='';
-  if(!pass){err.textContent='Inserisci la password';return;}
-  const u=USERS[user];
-  if(!u||u.password!==pass){
-    err.textContent='Password errata';
-    document.getElementById('loginPassword').value='';
-    document.getElementById('loginPassword').focus();
-    return;
+onAuthStateChanged(auth, user=>{
+  if(user){
+    const isAdmin=!user.isAnonymous && ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.email||'').toLowerCase());
+    window._st.isAdmin=isAdmin;
+    window._st.currentUser=user;
+    _doShowApp(user,isAdmin);
+  } else {
+    signInAnonymously(auth).catch(()=>showLogin());
   }
-  localStorage.setItem('hb_user', user);
-  _doShowApp(user);
+});
+
+window.switchTab=function(tab){
+  document.getElementById('tabLogin').classList.toggle('active',tab==='login');
+  document.getElementById('tabRegister').classList.toggle('active',tab==='register');
+  document.getElementById('panelLogin').style.display   =tab==='login'   ?'block':'none';
+  document.getElementById('panelRegister').style.display=tab==='register'?'block':'none';
+  document.getElementById('loginError').textContent='';
+  document.getElementById('regError').textContent='';
 };
 
-window.doLogout=function(){
+window.doLogin=async function(){
+  const btn=document.getElementById('loginBtn');
+  const email=document.getElementById('loginEmail').value.trim();
+  const pass=document.getElementById('loginPassword').value;
+  const err=document.getElementById('loginError');
+  err.textContent='';
+  if(!email||!pass){err.textContent='Inserisci email e password';return;}
+  btn.disabled=true; btn.innerHTML='<span class="spinner-sm"></span>';
+  try{ await signInWithEmailAndPassword(auth,email,pass); }
+  catch(e){ err.textContent=_authErrMsg(e.code); btn.disabled=false; btn.textContent='Accedi'; }
+};
+
+window.doRegister=async function(){
+  const btn=document.getElementById('regBtn');
+  const name=document.getElementById('regName').value.trim();
+  const email=document.getElementById('regEmail').value.trim();
+  const pass=document.getElementById('regPassword').value;
+  const err=document.getElementById('regError');
+  err.textContent='';
+  if(!email||!pass){err.textContent='Inserisci email e password';return;}
+  if(pass.length<6){err.textContent='Password minimo 6 caratteri';return;}
+  btn.disabled=true; btn.innerHTML='<span class="spinner-sm"></span>';
+  try{
+    const cred=await createUserWithEmailAndPassword(auth,email,pass);
+    if(name) await updateProfile(cred.user,{displayName:name});
+  }catch(e){ err.textContent=_authErrMsg(e.code); btn.disabled=false; btn.textContent='Crea account'; }
+};
+
+window.doGoogleLogin=async function(){
+  const provider=new GoogleAuthProvider();
+  try{ await signInWithPopup(auth,provider); }
+  catch(e){ if(e.code!=='auth/popup-closed-by-user') document.getElementById('loginError').textContent=_authErrMsg(e.code); }
+};
+
+window.doGuestAccess=async function(){
+  try{ await signInAnonymously(auth); }
+  catch(e){ showToast('Errore accesso ospite'); }
+};
+
+window.doLogout=async function(){
   closeOverlay('logoutOverlay');
-  localStorage.removeItem('hb_user');
   if(unsubMatches){unsubMatches();unsubMatches=null;}
   if(unsubTeams){unsubTeams();unsubTeams=null;}
   if(unsubSeason){unsubSeason();unsubSeason=null;}
   window._st.matches=[];window._st.teams=[];window._st.currentSeason=null;
-  showLogin();
+  await signOut(auth);
 };
 
-window.selectUser=function(u){
-  document.getElementById('loginUser').value=u;
-  document.getElementById('btnAdmin').classList.toggle('active', u==='admin');
-  document.getElementById('btnUser').classList.toggle('active', u==='user');
-  document.getElementById('loginPassword').value='';
-  document.getElementById('loginError').textContent='';
-  document.getElementById('loginPassword').focus();
-};
-
-// Enter key
-document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('loginPassword').addEventListener('keydown',e=>{
-    if(e.key==='Enter') doLogin();
-  });
-});
+function _authErrMsg(code){
+  const m={'auth/invalid-credential':'Email o password errati','auth/user-not-found':'Nessun account con questa email','auth/wrong-password':'Password errata','auth/email-already-in-use':'Email già registrata','auth/weak-password':'Password troppo corta (min. 6)','auth/invalid-email':'Email non valida','auth/too-many-requests':'Troppi tentativi. Riprova tra poco','auth/popup-closed-by-user':'Accesso Google annullato','auth/network-request-failed':'Errore di rete'};
+  return m[code]||'Errore: '+code;
+}
 
 function showLogin(){
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('appShell').style.display='none';
-  document.getElementById('loginError').textContent='';
-  document.getElementById('loginPassword').value='';
-  document.getElementById('loginBtn').disabled=false;
-  document.getElementById('loginBtn').textContent='Accedi';
 }
 
-function _doShowApp(username){
-  const u=USERS[username];
-  window._st.currentUser=username;
-  window._st.isAdmin=u.isAdmin;
+function _doShowApp(user,isAdmin){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appShell').style.display='block';
-  // Badge header
   const avatar=document.getElementById('userAvatar');
   const roleLabel=document.getElementById('userRoleLabel');
-  avatar.textContent=u.isAdmin?'★':'👁';
-  avatar.className='user-avatar '+(u.isAdmin?'admin':'viewer');
-  roleLabel.textContent=u.label;
-  roleLabel.className='user-role '+(u.isAdmin?'admin':'viewer');
-  // Logout panel
-  document.getElementById('luEmail').textContent=username==='admin'?'Amministratore':'Utente';
-  document.getElementById('luRole').textContent=u.role;
-  // FAB
-  document.getElementById('fabBtn').style.display=u.isAdmin?'flex':'none';
+  const isAnon=user.isAnonymous;
+  const displayName=user.displayName||user.email||'Utente';
+  avatar.textContent=isAdmin?'★':(isAnon?'👁':(displayName[0]||'U').toUpperCase());
+  avatar.className='user-avatar '+(isAdmin?'admin':'viewer');
+  roleLabel.textContent=isAdmin?'Admin':isAnon?'Ospite':'Viewer';
+  roleLabel.className='user-role '+(isAdmin?'admin':'viewer');
+  document.getElementById('luEmail').textContent=isAnon?'Accesso ospite':(user.displayName||user.email||'Utente');
+  document.getElementById('luRole').textContent=isAdmin?'Amministratore — modifiche abilitate':'Solo visualizzazione';
+  document.getElementById('fabBtn').style.display=isAdmin?'flex':'none';
   startListeners();
   renderApp();
 }
 
-// ── GUARD ──
 function requireAdmin(){
-  if(!window._st.isAdmin){showToast('🔒 Solo l\'admin può modificare');return false;}
+  if(!window._st.isAdmin){showToast('🔒 Solo gli admin possono modificare');return false;}
   return true;
 }
+
+document.getElementById('loginPassword')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('regPassword')?.addEventListener('keydown',e=>{if(e.key==='Enter')doRegister();});
+document.getElementById('loginEmail')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPassword').focus();});
+document.getElementById('regEmail')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('regPassword').focus();});
 
 // ── FIREBASE LISTENERS ──
 function startListeners(){
@@ -1062,25 +1146,5 @@ document.querySelectorAll('.modal').forEach(modal=>{
   modal.addEventListener('touchend',e=>{const dy=e.changedTouches[0].clientY-sy;modal.style.transition='';modal.style.transform='';if(dy>80&&ss<=0){const ov=modal.closest('.overlay');if(ov)closeOverlay(ov.id);}},{passive:true});
 });
 </script>
-
-<div id="version-badge">V1.1</div>
-
-<style>
-#version-badge{
-  position: fixed;
-  bottom: 8px;
-  right: 10px;
-  font-family: Arial, sans-serif;
-  font-size: 10px;
-  font-weight: 400;
-  color: white;
-  background: transparent;
-  padding: 0;
-  box-shadow: none;
-  border-radius: 0;
-  z-index: 9999;
-}
-</style>
-
 </body>
 </html>
