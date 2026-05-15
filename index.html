@@ -564,11 +564,12 @@ const FIREBASE_CONFIG = {
 //  🔐 ADMIN EMAIL — cambia con la tua email
 // ══════════════════════════════════════
 const ADMIN_EMAILS = [
-  "raffaborel@gmail.com",
+  "admin@heronbasket.it",
 ];
 
 let db=null, auth=null;
 let unsubMatches=null, unsubTeams=null, unsubSeason=null;
+let _authPending=false; // true while registration/login is in progress
 window._st={matches:[],teams:[],matchId:null,teamId:null,filter:'all',view:'list',currentSeason:null,isAdmin:false,currentUser:null};
 
 const apps=getApps();
@@ -577,12 +578,14 @@ db=getFirestore(fbApp);
 auth=getAuth(fbApp);
 
 onAuthStateChanged(auth, user=>{
+  if(_authPending) return; // registrazione/login in corso — non toccare la UI
   if(user){
     const isAdmin=!user.isAnonymous && ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.email||'').toLowerCase());
     window._st.isAdmin=isAdmin;
     window._st.currentUser=user;
     _doShowApp(user,isAdmin);
   } else {
+    // Nessun utente e nessuna operazione in corso → entra come ospite
     signInAnonymously(auth).catch(()=>showLogin());
   }
 });
@@ -603,9 +606,17 @@ window.doLogin=async function(){
   const err=document.getElementById('loginError');
   err.textContent='';
   if(!email||!pass){err.textContent='Inserisci email e password';return;}
+  _authPending=true;
   btn.disabled=true; btn.innerHTML='<span class="spinner-sm"></span>';
-  try{ await signInWithEmailAndPassword(auth,email,pass); }
-  catch(e){ err.textContent=_authErrMsg(e.code); btn.disabled=false; btn.textContent='Accedi'; }
+  try{
+    await signInWithEmailAndPassword(auth,email,pass);
+    _authPending=false;
+    _doShowApp(auth.currentUser, ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((auth.currentUser?.email||'').toLowerCase()));
+  }catch(e){
+    _authPending=false;
+    err.textContent=_authErrMsg(e.code);
+    btn.disabled=false; btn.textContent='Accedi';
+  }
 };
 
 window.doRegister=async function(){
@@ -617,17 +628,34 @@ window.doRegister=async function(){
   err.textContent='';
   if(!email||!pass){err.textContent='Inserisci email e password';return;}
   if(pass.length<6){err.textContent='Password minimo 6 caratteri';return;}
+  _authPending=true;
   btn.disabled=true; btn.innerHTML='<span class="spinner-sm"></span>';
   try{
     const cred=await createUserWithEmailAndPassword(auth,email,pass);
     if(name) await updateProfile(cred.user,{displayName:name});
-  }catch(e){ err.textContent=_authErrMsg(e.code); btn.disabled=false; btn.textContent='Crea account'; }
+    _authPending=false;
+    const isAdmin=ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((cred.user.email||'').toLowerCase());
+    _doShowApp(cred.user, isAdmin);
+  }catch(e){
+    _authPending=false;
+    err.textContent=_authErrMsg(e.code);
+    btn.disabled=false; btn.textContent='Crea account';
+  }
 };
 
 window.doGoogleLogin=async function(){
   const provider=new GoogleAuthProvider();
-  try{ await signInWithPopup(auth,provider); }
-  catch(e){ if(e.code!=='auth/popup-closed-by-user') document.getElementById('loginError').textContent=_authErrMsg(e.code); }
+  _authPending=true;
+  try{
+    const result=await signInWithPopup(auth,provider);
+    _authPending=false;
+    const isAdmin=ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((result.user.email||'').toLowerCase());
+    _doShowApp(result.user,isAdmin);
+  }catch(e){
+    _authPending=false;
+    if(e.code!=='auth/popup-closed-by-user')
+      document.getElementById('loginError').textContent=_authErrMsg(e.code);
+  }
 };
 
 window.doGuestAccess=async function(){
