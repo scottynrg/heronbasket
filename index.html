@@ -569,7 +569,6 @@ const ADMIN_EMAILS = [
 
 let db=null, auth=null;
 let unsubMatches=null, unsubTeams=null, unsubSeason=null;
-let _authPending=false; // true while registration/login is in progress
 window._st={matches:[],teams:[],matchId:null,teamId:null,filter:'all',view:'list',currentSeason:null,isAdmin:false,currentUser:null};
 
 const apps=getApps();
@@ -577,19 +576,22 @@ const fbApp=apps.length?apps[0]:initializeApp(FIREBASE_CONFIG);
 db=getFirestore(fbApp);
 auth=getAuth(fbApp);
 
+// ── AVVIO: controlla se c'è già una sessione attiva ──
+// onAuthStateChanged si chiama UNA SOLA VOLTA all'avvio per ripristinare la sessione.
+// Dopo, tutta la navigazione è gestita manualmente (niente listener automatici).
+let _authReady=false;
 onAuthStateChanged(auth, user=>{
-  if(_authPending) return; // registrazione/login in corso — non toccare la UI
+  if(_authReady) return; // dopo il primo avvio non reagire più
+  _authReady=true;
   if(user){
     const isAdmin=!user.isAnonymous && ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.email||'').toLowerCase());
-    window._st.isAdmin=isAdmin;
-    window._st.currentUser=user;
     _doShowApp(user,isAdmin);
   } else {
-    // Nessun utente e nessuna operazione in corso → entra come ospite
-    signInAnonymously(auth).catch(()=>showLogin());
+    showLogin();
   }
 });
 
+// ── TAB SWITCH ──
 window.switchTab=function(tab){
   document.getElementById('tabLogin').classList.toggle('active',tab==='login');
   document.getElementById('tabRegister').classList.toggle('active',tab==='register');
@@ -599,6 +601,7 @@ window.switchTab=function(tab){
   document.getElementById('regError').textContent='';
 };
 
+// ── LOGIN ──
 window.doLogin=async function(){
   const btn=document.getElementById('loginBtn');
   const email=document.getElementById('loginEmail').value.trim();
@@ -606,19 +609,18 @@ window.doLogin=async function(){
   const err=document.getElementById('loginError');
   err.textContent='';
   if(!email||!pass){err.textContent='Inserisci email e password';return;}
-  _authPending=true;
   btn.disabled=true; btn.innerHTML='<span class="spinner-sm"></span>';
   try{
-    await signInWithEmailAndPassword(auth,email,pass);
-    _authPending=false;
-    _doShowApp(auth.currentUser, ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((auth.currentUser?.email||'').toLowerCase()));
+    const cred=await signInWithEmailAndPassword(auth,email,pass);
+    const isAdmin=ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((cred.user.email||'').toLowerCase());
+    _doShowApp(cred.user,isAdmin);
   }catch(e){
-    _authPending=false;
     err.textContent=_authErrMsg(e.code);
     btn.disabled=false; btn.textContent='Accedi';
   }
 };
 
+// ── REGISTRAZIONE ──
 window.doRegister=async function(){
   const btn=document.getElementById('regBtn');
   const name=document.getElementById('regName').value.trim();
@@ -628,61 +630,85 @@ window.doRegister=async function(){
   err.textContent='';
   if(!email||!pass){err.textContent='Inserisci email e password';return;}
   if(pass.length<6){err.textContent='Password minimo 6 caratteri';return;}
-  _authPending=true;
   btn.disabled=true; btn.innerHTML='<span class="spinner-sm"></span>';
   try{
     const cred=await createUserWithEmailAndPassword(auth,email,pass);
     if(name) await updateProfile(cred.user,{displayName:name});
-    _authPending=false;
     const isAdmin=ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((cred.user.email||'').toLowerCase());
-    _doShowApp(cred.user, isAdmin);
+    _doShowApp(cred.user,isAdmin);
   }catch(e){
-    _authPending=false;
     err.textContent=_authErrMsg(e.code);
     btn.disabled=false; btn.textContent='Crea account';
   }
 };
 
+// ── GOOGLE ──
 window.doGoogleLogin=async function(){
   const provider=new GoogleAuthProvider();
-  _authPending=true;
   try{
     const result=await signInWithPopup(auth,provider);
-    _authPending=false;
     const isAdmin=ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((result.user.email||'').toLowerCase());
     _doShowApp(result.user,isAdmin);
   }catch(e){
-    _authPending=false;
     if(e.code!=='auth/popup-closed-by-user')
       document.getElementById('loginError').textContent=_authErrMsg(e.code);
   }
 };
 
+// ── OSPITE ──
 window.doGuestAccess=async function(){
-  try{ await signInAnonymously(auth); }
-  catch(e){ showToast('Errore accesso ospite'); }
+  try{
+    const cred=await signInAnonymously(auth);
+    _doShowApp(cred.user,false);
+  }catch(e){ showToast('Errore accesso ospite'); }
 };
 
+// ── LOGOUT ──
 window.doLogout=async function(){
   closeOverlay('logoutOverlay');
   if(unsubMatches){unsubMatches();unsubMatches=null;}
   if(unsubTeams){unsubTeams();unsubTeams=null;}
   if(unsubSeason){unsubSeason();unsubSeason=null;}
   window._st.matches=[];window._st.teams=[];window._st.currentSeason=null;
+  _authReady=false; // permetti a onAuthStateChanged di agire al prossimo avvio
   await signOut(auth);
+  showLogin();
 };
 
 function _authErrMsg(code){
-  const m={'auth/invalid-credential':'Email o password errati','auth/user-not-found':'Nessun account con questa email','auth/wrong-password':'Password errata','auth/email-already-in-use':'Email già registrata','auth/weak-password':'Password troppo corta (min. 6)','auth/invalid-email':'Email non valida','auth/too-many-requests':'Troppi tentativi. Riprova tra poco','auth/popup-closed-by-user':'Accesso Google annullato','auth/network-request-failed':'Errore di rete'};
+  const m={
+    'auth/invalid-credential':'Email o password errati',
+    'auth/user-not-found':'Nessun account con questa email',
+    'auth/wrong-password':'Password errata',
+    'auth/email-already-in-use':'Email già registrata',
+    'auth/weak-password':'Password troppo corta (min. 6)',
+    'auth/invalid-email':'Email non valida',
+    'auth/too-many-requests':'Troppi tentativi. Riprova tra poco',
+    'auth/popup-closed-by-user':'Accesso Google annullato',
+    'auth/network-request-failed':'Errore di rete',
+  };
   return m[code]||'Errore: '+code;
 }
 
 function showLogin(){
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('appShell').style.display='none';
+  // reset form
+  ['loginEmail','loginPassword','regName','regEmail','regPassword'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  ['loginError','regError'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.textContent='';
+  });
+  ['loginBtn','regBtn'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){el.disabled=false; el.textContent=id==='loginBtn'?'Accedi':'Crea account';}
+  });
 }
 
 function _doShowApp(user,isAdmin){
+  window._st.isAdmin=isAdmin;
+  window._st.currentUser=user;
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appShell').style.display='block';
   const avatar=document.getElementById('userAvatar');
