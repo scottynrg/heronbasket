@@ -546,7 +546,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import {
   getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged,
+  signInWithPopup, signInWithRedirect, getRedirectResult,
+  GoogleAuthProvider, signOut, onAuthStateChanged,
   updateProfile, signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
@@ -565,6 +566,7 @@ const FIREBASE_CONFIG = {
 // ══════════════════════════════════════
 const ADMIN_EMAILS = [
   "raffaborel@gmail.com",
+  "manuela.leporati@gmail.com",
 ];
 
 let db=null, auth=null;
@@ -576,19 +578,40 @@ const fbApp=apps.length?apps[0]:initializeApp(FIREBASE_CONFIG);
 db=getFirestore(fbApp);
 auth=getAuth(fbApp);
 
-// ── AVVIO: controlla se c'è già una sessione attiva ──
-// onAuthStateChanged si chiama UNA SOLA VOLTA all'avvio per ripristinare la sessione.
-// Dopo, tutta la navigazione è gestita manualmente (niente listener automatici).
+// ── AVVIO ──
 let _authReady=false;
-onAuthStateChanged(auth, user=>{
-  if(_authReady) return; // dopo il primo avvio non reagire più
+
+// Controlla prima se stiamo tornando da un redirect Google
+getRedirectResult(auth).then(result=>{
   _authReady=true;
-  if(user){
-    const isAdmin=!user.isAnonymous && ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.email||'').toLowerCase());
-    _doShowApp(user,isAdmin);
+  if(result && result.user){
+    // Redirect Google completato con successo
+    const isAdmin=ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((result.user.email||'').toLowerCase());
+    _doShowApp(result.user,isAdmin);
   } else {
-    showLogin();
+    // Nessun redirect — controlla sessione esistente
+    onAuthStateChanged(auth, user=>{
+      if(_authReady) return;
+      _authReady=true;
+      if(user){
+        const isAdmin=!user.isAnonymous && ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.email||'').toLowerCase());
+        _doShowApp(user,isAdmin);
+      } else {
+        showLogin();
+      }
+    });
   }
+}).catch(e=>{
+  // Errore redirect (es. popup bloccato) — vai al login normale
+  _authReady=true;
+  onAuthStateChanged(auth, user=>{
+    if(user){
+      const isAdmin=!user.isAnonymous && ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.email||'').toLowerCase());
+      _doShowApp(user,isAdmin);
+    } else {
+      showLogin();
+    }
+  });
 });
 
 // ── TAB SWITCH ──
@@ -642,13 +665,26 @@ window.doRegister=async function(){
   }
 };
 
-// ── GOOGLE ──
+// ── GOOGLE (usa redirect — funziona su Android e mobile) ──
 window.doGoogleLogin=async function(){
   const provider=new GoogleAuthProvider();
+  provider.addScope('email');
+  provider.addScope('profile');
   try{
-    const result=await signInWithPopup(auth,provider);
-    const isAdmin=ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((result.user.email||'').toLowerCase());
-    _doShowApp(result.user,isAdmin);
+    // Prova prima popup (desktop/browser), fallback redirect (Android/mobile)
+    try{
+      const result=await signInWithPopup(auth,provider);
+      const isAdmin=ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((result.user.email||'').toLowerCase());
+      _doShowApp(result.user,isAdmin);
+    }catch(popupErr){
+      if(popupErr.code==='auth/popup-blocked'||popupErr.code==='auth/popup-closed-by-user'||popupErr.code==='auth/cancelled-popup-request'){
+        // Popup bloccato → usa redirect
+        await signInWithRedirect(auth,provider);
+        // La pagina si ricarica, il risultato viene gestito da getRedirectResult() all'avvio
+      } else {
+        throw popupErr;
+      }
+    }
   }catch(e){
     if(e.code!=='auth/popup-closed-by-user')
       document.getElementById('loginError').textContent=_authErrMsg(e.code);
