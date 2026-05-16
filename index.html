@@ -307,6 +307,11 @@
     .conv-modal-name{font-size:.92rem;font-weight:500;color:var(--text)}
     .conv-modal-empty{text-align:center;padding:30px 0;color:var(--muted);font-size:.88rem;font-style:italic}
     .conv-modal-meta{font-size:.78rem;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:6px}
+    .conv-modal-item-del{width:30px;height:30px;border-radius:8px;border:none;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;transition:all .15s}
+    .conv-modal-item-del:hover{background:rgba(217,48,37,.1);color:var(--red)}
+    .conv-modal-footer{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+    .btn-clear-conv{width:100%;padding:11px;border-radius:10px;border:1.5px solid rgba(217,48,37,.3);background:rgba(217,48,37,.07);color:var(--red);font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:700;cursor:pointer;transition:background .15s}
+    .btn-clear-conv:active{background:rgba(217,48,37,.18)}
 
     /* LOGIN TOGGLE */
     .login-toggle{display:flex;gap:6px;margin-top:2px}
@@ -1033,9 +1038,12 @@ window.onTeamSelect=function(){updateTeamHints();};
 window.onLocationInput=function(){const i=document.getElementById('f_location');if(i)i.dataset.manualEdit=i.value?'1':'';};
 // ── CONVOCATI ──
 // ── VISUALIZZA CONVOCATI (da card) ──
+window._convViewMatchId = null;
+
 window.openConvView = function(matchId) {
   const m = window._st.matches.find(x=>x.id===matchId);
   if(!m) return;
+  window._convViewMatchId = matchId;
   const dt = m.datetime ? new Date(m.datetime) : null;
   const dateStr = dt ? dt.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long'}) : '';
   const homeTeam = window._st.teams.find(t=>t.id===m.homeId);
@@ -1047,18 +1055,60 @@ window.openConvView = function(matchId) {
     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     ${dateStr ? dateStr + ' · ' : ''}${vs}`;
 
-  const conv = m.convocati || [];
+  renderConvViewList(m.convocati || []);
+  openOverlay('convViewOverlay');
+};
+
+function renderConvViewList(conv){
   const listEl = document.getElementById('convViewList');
+  const isAdmin = window._st.isAdmin;
   if(conv.length === 0){
     listEl.innerHTML = '<div class="conv-modal-empty">Nessun convocato inserito per questa partita.</div>';
-  } else {
-    listEl.innerHTML = conv.map((n,i)=>`
-      <div class="conv-modal-item">
-        <span class="conv-modal-num">${i+1}</span>
-        <span class="conv-modal-name">${n}</span>
-      </div>`).join('');
+    return;
   }
-  openOverlay('convViewOverlay');
+  listEl.innerHTML = conv.map((n,i)=>`
+    <div class="conv-modal-item">
+      <span class="conv-modal-num">${i+1}</span>
+      <span class="conv-modal-name">${n}</span>
+      ${isAdmin ? `<button class="conv-modal-item-del" onclick="deleteConvocato(${i})" title="Rimuovi">✕</button>` : ''}
+    </div>`).join('')
+    + (isAdmin && conv.length > 0 ? `
+    <div class="conv-modal-footer">
+      <button class="btn-clear-conv" onclick="clearAllConvocati()">🗑️ Elimina tutti i convocati</button>
+    </div>` : '');
+}
+
+window.deleteConvocato = async function(index){
+  if(!requireAdmin()) return;
+  const matchId = window._convViewMatchId;
+  const m = window._st.matches.find(x=>x.id===matchId);
+  if(!m) return;
+  const conv = [...(m.convocati||[])];
+  conv.splice(index,1);
+  try{
+    const sid = window._st.currentSeason.id;
+    await updateDoc(doc(db,'seasons',sid,'matches',matchId),{convocati:conv});
+    // update local state immediately for smooth UX
+    m.convocati = conv;
+    renderConvViewList(conv);
+    // update badge on card
+    renderApp();
+  }catch(e){ showToast('❌ '+e.message); }
+};
+
+window.clearAllConvocati = async function(){
+  if(!requireAdmin()) return;
+  if(!confirm('Eliminare tutti i convocati da questa partita?')) return;
+  const matchId = window._convViewMatchId;
+  try{
+    const sid = window._st.currentSeason.id;
+    await updateDoc(doc(db,'seasons',sid,'matches',matchId),{convocati:[]});
+    const m = window._st.matches.find(x=>x.id===matchId);
+    if(m) m.convocati=[];
+    renderConvViewList([]);
+    renderApp();
+    showToast('🗑️ Convocati eliminati');
+  }catch(e){ showToast('❌ '+e.message); }
 };
 
 window._convocati = []; // array of strings for current modal
