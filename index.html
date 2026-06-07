@@ -356,7 +356,7 @@
 </div>
 
 <!-- ══ APP (hidden until logged in) ══ -->
-<div id="appShell">
+<div id="appShell" style="display:none">
 
 <header>
   <div class="header-inner">
@@ -472,6 +472,18 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- ══ LOADING SCREEN ══ -->
+<div id="loadingScreen" style="
+  position:fixed;inset:0;z-index:9999;
+  background:var(--blue);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+">
+  <div style="font-family:'Bebas Neue',sans-serif;font-size:2.8rem;letter-spacing:3px;color:var(--gold)">
+    Heron<span style="color:#fff">Basket</span>
+  </div>
+  <div style="width:36px;height:36px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite"></div>
+</div>
+
 <script>
   if('serviceWorker' in navigator)
     window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
@@ -556,24 +568,33 @@ const fbApp=apps.length?apps[0]:initializeApp(FIREBASE_CONFIG);
 db=getFirestore(fbApp);
 auth=getAuth(fbApp);
 
-// ── AVVIO ──
-// ── AVVIO: sempre ospite, nessuna schermata di login ──
+// ── AVVIO: entra come ospite, ascolta auth state una sola volta ──
+let _started = false;
+function _start(user){
+  if(_started) return;
+  _started = true;
+  const isAdmin = !user.isAnonymous && ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.email||'').toLowerCase());
+  _doShowApp(user, isAdmin);
+}
+
+// Prima controlla redirect Google (es. ritorno da signInWithRedirect)
 getRedirectResult(auth).then(result=>{
   if(result && result.user){
-    // Ritorno da redirect Google admin
-    const isAdmin=ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((result.user.email||'').toLowerCase());
-    _doShowApp(result.user,isAdmin);
-  } else {
-    const cur=auth.currentUser;
-    if(cur){
-      const isAdmin=!cur.isAnonymous && ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((cur.email||'').toLowerCase());
-      _doShowApp(cur,isAdmin);
-    } else {
-      signInAnonymously(auth).then(c=>_doShowApp(c.user,false)).catch(()=>{});
-    }
+    _start(result.user);
   }
-}).catch(()=>{
-  signInAnonymously(auth).then(c=>_doShowApp(c.user,false)).catch(()=>{});
+  // Se non c'è redirect, onAuthStateChanged gestisce tutto
+}).catch(()=>{});
+
+// Listener principale: scatta appena Firebase ha un utente (anche anonimo)
+onAuthStateChanged(auth, user=>{
+  if(_started) return;
+  if(user){
+    _start(user);
+  } else {
+    // Nessun utente → accedi come anonimo
+    signInAnonymously(auth).catch(e=>console.error('anon fail',e));
+    // onAuthStateChanged scatterà di nuovo con l'utente anonimo
+  }
 });
 
 // ── ADMIN LOGIN PANEL ──
@@ -654,6 +675,9 @@ function _authErrMsg(code){
 function _doShowApp(user,isAdmin){
   window._st.isAdmin=isAdmin;
   window._st.currentUser=user;
+  // Nascondi loading, mostra app
+  const ls=document.getElementById('loadingScreen');
+  if(ls) ls.style.display='none';
   document.getElementById('appShell').style.display='block';
   const avatar=document.getElementById('userAvatar');
   const roleLabel=document.getElementById('userRoleLabel');
