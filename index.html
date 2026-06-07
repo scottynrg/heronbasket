@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,interactive-widget=resizes-content"/>
   <meta name="theme-color" content="#1D428A"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="HeronBasket"/>
   <link rel="manifest" href="manifest.json"/>
@@ -696,7 +697,6 @@ function _doShowApp(user,isAdmin){
   const fab=document.getElementById('fabBtn');
   fab.style.display=isAdmin?'flex':'none';
   fab.onclick=()=>openMatchModal(null);
-  _authReady=true;
   startListeners();
   renderApp();
 }
